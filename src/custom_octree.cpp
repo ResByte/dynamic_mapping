@@ -50,19 +50,11 @@ ros::Publisher octomap_pub ;
 class MarkovOctreeNode : public OcTreeNode{
 public:
   MarkovOctreeNode() :OcTreeNode() {
-	  count =0;
-	  prev_state = 0;
-	  prev_prob =(double)0.0;
-	  }
-  //MarkovOctree(const MarkovOctree& rhs) : OcTreeNode(rhs){}
-  
-  /*
-  //operator overloading
-  bool operator==(const MarkovOctree& rhs) const{
-    return (rhs.count == count && rhs.prev_state == prev_state && rhs.prev_prob == prev_prob);
+    count =0;
+    prev_state = 0;
+    prev_prob =(double)0.0;
   }
-  */
-   
+  //MarkovOctree(const MarkovOctree& rhs) : OcTreeNode(rhs){} 
   //children
   inline MarkovOctreeNode* getChild(unsigned int i ){
     return static_cast<MarkovOctreeNode*>(OcTreeNode::getChild(i));
@@ -91,24 +83,23 @@ public:
   //update occupancy and timestamps of the inner nodes
   
   /*
-  inline void updateOccupancyChildren(){
+    inline void updateOccupancyChildren(){
     setPrevProb(this->getOccupancy());
     setPrevState(1);
     this->setLogOdds(this->getMaxChildLogOdds());
     // TODO: add other updates
-  }*/
+    }*/
 protected:
-	
-	int count; // the number of observations in current state
-	int prev_state; // previous state
-	double prev_prob; /// previous occupancy prob
-	
+  
+  int count; // the number of observations in current state
+  int prev_state; // previous state
+  double prev_prob; /// previous occupancy prob
+  
 };
 
 
 //tree definition
-class DynamicGrid : public OccupancyOcTreeBase <MarkovOctreeNode> {
-  
+class DynamicGrid : public OccupancyOcTreeBase <MarkovOctreeNode> {  
 public:
   // Default constructor to set the resolution
   DynamicGrid(double resolution) : OccupancyOcTreeBase<MarkovOctreeNode>(resolution){};
@@ -119,8 +110,8 @@ public:
   // return timestamp of last update
   //virtual void updateNodeLogOdds(MarkovOctreeNode* node, const float& update) const;
   DynamicGrid operator =(const DynamicGrid& rhs) const{
-	  return rhs;
-	  }
+    return rhs;
+  }
 };
 
 std::deque< DynamicGrid> cloud_seq_loaded; 
@@ -231,148 +222,109 @@ void publishMapAsMarkers(DynamicGrid* octree_msg) {
 void processCloud(const sensor_msgs::PointCloud2 msg){
   ros::Time start_time = ros::Time::now();
   //********* Retirive and process raw pointcloud************
-  std::cout<<"Recieved cloud"<<std::endl;
-  std::cout<<"Create Octomap"<<std::endl;
+  // std::cout<<"Recieved cloud"<<std::endl;
+  //std::cout<<"Create Octomap"<<std::endl;
   DynamicGrid curr_tree(res);
-  std::cout<<"Load points "<<std::endl;
+  //std::cout<<"Load points "<<std::endl;
   pcl::PCLPointCloud2 cloud;
   pcl_conversions::toPCL(msg,cloud);
   pcl::PointCloud<pcl::PointXYZ> pcl_pc;
   pcl::fromPCLPointCloud2(cloud,pcl_pc);
-  std::cout<<"Filter point clouds for NAN"<<std::endl;
+  //std::cout<<"Filter point clouds for NAN"<<std::endl;
   std::vector<int> nan_indices;
   pcl::removeNaNFromPointCloud(pcl_pc,pcl_pc,nan_indices);
   octomap::Pointcloud oct_pc;
   octomap::point3d origin(0.0f,0.0f,0.0f);
-  std::cout<<"Adding point cloud to octomap"<<std::endl;
+  //std::cout<<"Adding point cloud to octomap"<<std::endl;
   //octomap::point3d origin(0.0f,0.0f,0.0f);
   for(int i = 0;i<pcl_pc.points.size();i++){
     oct_pc.push_back((float) pcl_pc.points[i].x,(float) pcl_pc.points[i].y,(float) pcl_pc.points[i].z);
   }
-  std::cout<< "inserting cloud to empty tree"<<std::endl;
+  //std::cout<< "inserting cloud to empty tree"<<std::endl;
   curr_tree.insertPointCloud(oct_pc,origin,-1,false,false);
   
-  std::cout<<"Size of dynamic grid : "<< curr_tree.size()<< std::endl;
+  //std::cout<<"Size of dynamic grid : "<< curr_tree.size()<< std::endl;
   //*********** Remove the oldest data, update the data***************	
   cloud_seq_loaded.push_back(curr_tree);
   //std::cout<<"Size of cloud seq : "<<cloud_seq_loaded.size()<<std::endl;
   if(cloud_seq_loaded.size()>2){
-    cloud_seq_loaded.pop_front();
-    
+    cloud_seq_loaded.pop_front();  
   }
   
   //publish the octomap 
-
-  std::cout<<"publishing octomap"<<std::endl;
+  
+  //std::cout<<"publishing octomap"<<std::endl;
   publishMapAsMarkers(&curr_tree);
-      
-  std::cout<<"published"<<std::endl;  
-  
-  
-  
+  //std::cout<<"published"<<std::endl;  
   //*********** Process currently observerd and buffered data*********
   
   if(cloud_seq_loaded.size()==2){
-    std::cout<< "Generating octomap"<<std::endl;
-
-		/*
-		  for(std::deque<pcl::PointCloud<pcl::PointXYZ> >::iterator it = cloud_seq_loaded.begin();it!=cloud_seq_loaded.end()-1;++it)
-		  
-		  std::cout<<"iterating"<<std::endl;	
-		  
-		  }*/
-		/*  
-		pcl::PointCloud<pcl::PointXYZ> prev_pc = cloud_seq_loaded.front();
-		for(int i =0;i<prev_pc.points.size();i++)
-		  {
-		    prev_oct_pc.push_back((float) prev_pc.points[i].x,(float) prev_pc.points[i].y,(float) prev_pc.points[i].z);
-		  }
-		  * */
-		DynamicGrid prev_tree(res);
-		
-		prev_tree = cloud_seq_loaded.front();
-		
-		//************** Publish the read octomap with nodes and their sizes***********
-		int count = 0;
-		int n_count = 0;
-		for(DynamicGrid::tree_iterator it = curr_tree.begin_tree(),end=curr_tree.end_tree(); it!= end; ++it)
-		  {	
-		    
-		    octomap::point3d curr_coord = it.getCoordinate();
-		    //std::cout << curr_coord<< std::endl;
-		    MarkovOctreeNode* prev_node = prev_tree.search(curr_coord);
-		    MarkovOctreeNode* curr_node = &*it;
+    //std::cout<< "Generating octomap"<<std::endl;
+    DynamicGrid prev_tree(res);
+    prev_tree = cloud_seq_loaded.front();
+    
+    //************** Publish the read octomap with nodes and their sizes***********
+    int count = 0;
+    int n_count = 0;
+    for(DynamicGrid::tree_iterator it = curr_tree.begin_tree(),end=curr_tree.end_tree(); it!= end; ++it)
+      {	
+	octomap::point3d curr_coord = it.getCoordinate();
+	//std::cout << curr_coord<< std::endl;
+	MarkovOctreeNode* prev_node = prev_tree.search(curr_coord);// search for the same node in previous 
+	MarkovOctreeNode* curr_node = &*it;
         //std::cout<<it.isNodeOccupied()<<std::endl;
-		    
-		    //**********If the result is matched then perform the process*********
-		    if (prev_node!= NULL && curr_node!=NULL )
-		      {
-			      std::cout<<std::endl;
-				std::cout<< prev_node->getOccupancy()<<std::endl;
-				std::cout<< curr_node->getOccupancy()<<std::endl;
-				//std::cout<< it->getValue()<<std::endl;
-				ros::NodeHandle k;
-				ros::Rate rate(2);
-				//ros::Publisher pub = k.advertise<octomap_process::Num>("Hmm_data",1);
-				ros::ServiceClient client = k.serviceClient<dynamic_mapping::hmm_srv>("hmm_data");
-				//octomap_process::Num message;
-				//message.num1 = curr_node->getOccupancy();
-				//message.num2 = prev_node->getOccupancy();
-				//pub.publish(message);
-				//rate.sleep();
-				dynamic_mapping::hmm_srv srv;
-				srv.request.a = curr_node->getOccupancy();
-				srv.request.b = prev_node->getOccupancy();
-				if (client.call(srv))
-				{
-					std::cout<<srv.response.c<<std::endl;
-				}
-				else
-				{
-					ROS_ERROR("Failed to call service add_two_ints");
-					
-				}
-				std::cout<<std::endl;
-				count++;
-			}else{
-				n_count++;
-				}	
-			
-		    //std::cout<< curr_coord<<std::endl;
-		    
-		    //std::cout << "Node center: " << it.getCoordinate() << std::endl;
-		    //std::cout << "Node size: " << it.getSize() << std::endl;
-		    //std::cout << "Node value: " << it->getValue() << std::endl;
-		    
-		    
-		}
+	
+	//**********If the result is matched then perform the process*********
+	if (prev_node!= NULL && curr_node!=NULL )
+	  {
+	    //std::cout<<std::endl;
+	    //std::cout<< prev_node->getOccupancy()<<std::endl;
+	    //std::cout<< curr_node->getOccupancy()<<std::endl;
+	    //std::cout<< it->getValue()<<std::endl;
+	    ros::NodeHandle k;
+	    ros::Rate rate(2);
+	    ros::ServiceClient client = k.serviceClient<dynamic_mapping::hmm_srv>("hmm_data");
+	    dynamic_mapping::hmm_srv srv;
+	    srv.request.a = curr_node->getOccupancy();
+	    srv.request.b = prev_node->getOccupancy();
+	    if (client.call(srv))
+	      {
+		std::cout<<srv.response.c<<std::endl;
+	      }
+	    else
+	      {
+		ROS_ERROR("Failed to call service add_two_ints");
 		
-		//**********If there are sufficient number of observations process them.********
-		
-		
-		//tree.writeBinary("simple_tree.bt");
-		
-		std::cout<<"finished"<<std::endl;
-		std::cout<<std::endl;
+	      }
+	    std::cout<<std::endl;
+	    count++;
+	  }else{
+	  n_count++;
+	}	
+      }
+    //tree.writeBinary("simple_tree.bt");
+    
+    std::cout<<"finished"<<std::endl;
+    std::cout<<std::endl;
   }
   ros::Duration delta_t = ros::Time::now() - start_time;
   std::cout<< "Time for update :"<< delta_t<<std::endl;
-      
-
-// If want to save octomap,uncomment following
-//curr_tree.writeBinary("sampleTree.bt");
-
+  
+  
+  // If want to save octomap,uncomment following
+  //curr_tree.writeBinary("sampleTree.bt");
+  
 }
 
 int main(int argc, char **argv){	
-	std::cout<<std::endl;
-	std::cout<<"initializing ROS node"<<std::endl;
-	ros::init(argc,argv, "custom_octree");
-	ros::NodeHandle n;
-	uint32_t queue_size = 1;
-	
-	octomap_pub = n.advertise<visualization_msgs::MarkerArray>("/map_vis", 1);
-	ros::Subscriber sub = n.subscribe<sensor_msgs::PointCloud2>("/camera/depth/points",queue_size,processCloud);
-	ros::spin(); 
-	return 0;
+  std::cout<<std::endl;
+  std::cout<<"initializing ROS node"<<std::endl;
+  ros::init(argc,argv, "custom_octree");
+  ros::NodeHandle n;
+  uint32_t queue_size = 1;
+  
+  octomap_pub = n.advertise<visualization_msgs::MarkerArray>("/map_vis", 1);
+  ros::Subscriber sub = n.subscribe<sensor_msgs::PointCloud2>("/camera/depth/points",queue_size,processCloud);
+  ros::spin(); 
+  return 0;
 }
