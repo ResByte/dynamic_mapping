@@ -266,7 +266,7 @@ void processCloud(const sensor_msgs::PointCloud2 msg){
     //************** Publish the read octomap with nodes and their sizes***********
     int count = 0;
     int n_count = 0;
-    for(DynamicGrid::tree_iterator it = curr_tree.begin_tree(),end=curr_tree.end_tree(); it!= end; ++it)
+    for(DynamicGrid::leaf_iterator it = curr_tree.begin_leafs(),end=curr_tree.end_leafs(); it!= end; ++it)
       {	
 	octomap::point3d curr_coord = it.getCoordinate();
 	//std::cout << curr_coord<< std::endl;
@@ -281,6 +281,15 @@ void processCloud(const sensor_msgs::PointCloud2 msg){
 	    //std::cout<< prev_node->getOccupancy()<<std::endl;
 	    //std::cout<< curr_node->getOccupancy()<<std::endl;
 	    //std::cout<< it->getValue()<<std::endl;
+	    double curr_occ,prev_occ;
+	    curr_occ = curr_node->getOccupancy();
+	    prev_occ = prev_node->getOccupancy();
+	    // if the occupancy is same update the duration
+	    if(curr_occ == prev_occ){
+	      curr_node->updateDuration();
+	    }else{
+	      curr_node->resetDuration();
+	    } 
 	    ros::NodeHandle k;
 	    ros::Rate rate(2);
 	    ros::ServiceClient client = k.serviceClient<dynamic_mapping::hmm_srv>("hmm_data");
@@ -299,7 +308,9 @@ void processCloud(const sensor_msgs::PointCloud2 msg){
 	    std::cout<<std::endl;
 	    count++;
 	  }else{
-	  n_count++;
+	  if(curr_node!=NULL){
+	    curr_node->updateDuration();
+	  }
 	}	
       }
     //tree.writeBinary("simple_tree.bt");
