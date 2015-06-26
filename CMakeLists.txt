@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(PCL 1.2 REQUIRED)
 find_package(octomap REQUIRED)
+find_package(OpenCV REQUIRED)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -119,6 +120,7 @@ include_directories(
 	${catkin_INCLUDE_DIRS}
 	${PCL_INCLUDE_DIRS}
 	${OCTOMAP_INCLUDE_DIRS}
+	${OPENCV_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
@@ -130,7 +132,7 @@ link_directories(${OCTOMAP_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 ## Declare a cpp executable
 # add_executable(dynamic_mapping_node src/dynamic_mapping_node.cpp)
-add_executable(dynamic_mapping_node src/custom_octree.cpp)
+add_executable(dynamic_mapping_node src/cvHMM.cpp)
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(dynamic_mapping_node dynamic_mapping_generate_messages_cpp)
@@ -143,6 +145,7 @@ target_link_libraries(dynamic_mapping_node
 ${catkin_LIBRARIES}
 ${PCL_LIBRARIES}
 ${OCTOMAP_LIBRARIES}
+${OpenCV_LIBRARIES}
 )
 #############
 ## Install ##
